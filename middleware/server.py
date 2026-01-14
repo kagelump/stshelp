@@ -43,7 +43,7 @@ CONFIG = load_config()
 def strip_to_essential_state(game_state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Strip game state to essential tokens for LLM processing.
-    Keeps only: HP, Deck, Relics, Enemy Intent, Hand, Energy
+    Keeps only: Character, HP, Energy, Gold, Deck, Relics, Hand, Enemy Intent
     """
     essential = {}
     
@@ -231,10 +231,10 @@ def get_advice():
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint."""
-    return jsonify({'status': 'ok', 'config': {
-        'has_api_key': bool(CONFIG['openai_api_key']),
+    return jsonify({
+        'status': 'ok',
         'model': CONFIG['model']
-    }})
+    })
 
 
 if __name__ == '__main__':

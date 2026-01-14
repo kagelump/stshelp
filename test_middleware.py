@@ -2,6 +2,12 @@
 """
 Test script for STS Help middleware
 Tests state extraction, prompt generation, and server endpoints
+
+Project structure:
+  stshelp/
+    ├── middleware/
+    │   └── server.py
+    └── test_middleware.py (this file)
 """
 
 import sys
@@ -10,10 +16,10 @@ import json
 import requests
 import time
 
-# Add middleware to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add middleware to path - expects to be run from project root
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'middleware'))
 
-from middleware.server import strip_to_essential_state, create_prompt
+from server import strip_to_essential_state, create_prompt
 
 # Test data
 SAMPLE_GAME_STATE = {
@@ -149,8 +155,7 @@ def test_server_health(base_url="http://localhost:5000"):
         
         print(f"✓ Server health check passed")
         print(f"  Status: {data['status']}")
-        print(f"  Has API key: {data['config']['has_api_key']}")
-        print(f"  Model: {data['config']['model']}")
+        print(f"  Model: {data.get('model', 'N/A')}")
         return True
     
     except requests.exceptions.ConnectionError:
