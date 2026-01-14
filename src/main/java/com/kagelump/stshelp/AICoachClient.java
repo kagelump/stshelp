@@ -74,7 +74,8 @@ public class AICoachClient {
             model = DEFAULT_MODEL;
         }
         
-        STSHelpMod.logger.info("LLM Configuration - Endpoint: " + endpoint + ", Model: " + model);
+        // Log configuration (without sensitive data)
+        STSHelpMod.logger.info("LLM Configuration - Model: " + model);
     }
 
     public void requestAdvice(String gameStateJson, AdviceCallback callback) {

@@ -136,7 +136,7 @@ public class LLMClient {
      */
     public String getAdvice(String prompt) throws IOException {
         if (apiKey == null || apiKey.isEmpty()) {
-            return "Error: OpenAI API key not configured. Please set it in stshelp_config.json or environment variable OPENAI_API_KEY";
+            return "Error: API key not configured. Please configure your API credentials.";
         }
 
         URL url = new URL(endpoint);
