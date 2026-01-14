@@ -15,13 +15,11 @@ public class HelpButton extends TopPanelItem {
     private static final float SCALE = Settings.scale;
     
     private STSHelpMod mod;
-    private Texture buttonTexture;
     private boolean isHovered = false;
 
     public HelpButton(STSHelpMod mod) {
         super(loadTexture(), BUTTON_ID);
         this.mod = mod;
-        this.buttonTexture = loadTexture();
     }
 
     private static Texture loadTexture() {

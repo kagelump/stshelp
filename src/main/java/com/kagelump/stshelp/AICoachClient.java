@@ -110,7 +110,7 @@ public class AICoachClient {
     }
 
     public void shutdown() {
-        if (executor != null) {
+        if (executor != null && !executor.isShutdown()) {
             executor.shutdown();
         }
     }

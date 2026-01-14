@@ -106,6 +106,8 @@ def create_prompt(essential_state: Dict[str, Any]) -> str:
         prompt_parts.append(f"HP: {essential_state['hp']}")
     if 'energy' in essential_state:
         prompt_parts.append(f"Energy: {essential_state['energy']}")
+    if 'gold' in essential_state:
+        prompt_parts.append(f"Gold: {essential_state['gold']}")
     
     # Floor and act
     if 'floor' in essential_state and 'act' in essential_state:

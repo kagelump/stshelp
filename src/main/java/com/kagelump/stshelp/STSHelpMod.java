@@ -12,7 +12,8 @@ import org.apache.logging.log4j.Logger;
 @SpireInitializer
 public class STSHelpMod implements
         PostInitializeSubscriber,
-        PostUpdateSubscriber {
+        PostUpdateSubscriber,
+        OnStartBattleSubscriber {
 
     public static final Logger logger = LogManager.getLogger(STSHelpMod.class.getName());
     private static final String MOD_NAME = "STS Help";
@@ -22,17 +23,31 @@ public class STSHelpMod implements
     private HelpButton helpButton;
     private AdviceScreen adviceScreen;
     private AICoachClient aiClient;
+    private static STSHelpMod instance;
 
     public STSHelpMod() {
         logger.info("Initializing STS Help Mod");
         BaseMod.subscribe(this);
+        instance = this;
         
         // Initialize AI client
         aiClient = new AICoachClient();
+        
+        // Add shutdown hook for cleanup
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            logger.info("Shutting down STS Help Mod");
+            if (aiClient != null) {
+                aiClient.shutdown();
+            }
+        }));
     }
 
     public static void initialize() {
         new STSHelpMod();
+    }
+
+    public static STSHelpMod getInstance() {
+        return instance;
     }
 
     @Override
@@ -41,13 +56,20 @@ public class STSHelpMod implements
         
         // Create mod panel
         ModPanel settingsPanel = new ModPanel();
-        BaseMod.registerModBadge(
-            ImageMaster.loadImage("images/modBadge.png"),
-            MOD_NAME,
-            AUTHOR,
-            DESCRIPTION,
-            settingsPanel
-        );
+        
+        // Load mod badge with fallback
+        try {
+            BaseMod.registerModBadge(
+                ImageMaster.loadImage("images/modBadge.png"),
+                MOD_NAME,
+                AUTHOR,
+                DESCRIPTION,
+                settingsPanel
+            );
+        } catch (Exception e) {
+            logger.warn("Failed to load mod badge image, using default", e);
+            // Use a default image or skip badge registration
+        }
 
         // Initialize Help button
         helpButton = new HelpButton(this);
@@ -92,6 +114,11 @@ public class STSHelpMod implements
             logger.error("Failed to request advice", e);
             adviceScreen.showAdvice("Error: Failed to extract game state");
         }
+    }
+
+    @Override
+    public void receiveOnBattleStart(com.megacrit.cardcrawl.rooms.AbstractRoom room) {
+        // Optional: Could be used for pre-battle advice
     }
 
     public AdviceScreen getAdviceScreen() {
