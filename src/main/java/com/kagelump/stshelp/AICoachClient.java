@@ -4,22 +4,24 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Client for communicating with the AI middleware/backend.
- * Sends game state and receives advice.
+ * Client for communicating with LLM APIs directly.
+ * Processes game state and receives advice from AI.
  */
 public class AICoachClient {
 
-    private static final String DEFAULT_ENDPOINT = "http://localhost:5000/advice";
+    private static final String DEFAULT_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+    private static final String DEFAULT_MODEL = "gpt-3.5-turbo";
+    
+    private String apiKey;
     private String endpoint;
+    private String model;
     private Gson gson;
     private ExecutorService executor;
+    private LLMClient llmClient;
 
     public interface AdviceCallback {
         void onAdviceReceived(String advice);
@@ -30,83 +32,77 @@ public class AICoachClient {
         this.gson = new Gson();
         this.executor = Executors.newSingleThreadExecutor();
         
-        // Load endpoint from config or use default
-        this.endpoint = loadEndpoint();
+        // Load configuration
+        loadConfiguration();
+        
+        // Initialize LLM client
+        this.llmClient = new LLMClient(apiKey, endpoint, model);
     }
 
-    private String loadEndpoint() {
+    private void loadConfiguration() {
+        // Default values
+        this.apiKey = System.getenv("OPENAI_API_KEY");
+        this.endpoint = System.getenv("OPENAI_ENDPOINT");
+        this.model = System.getenv("OPENAI_MODEL");
+        
         // Try to load from config file
         File configFile = new File("stshelp_config.json");
         if (configFile.exists()) {
             try (FileReader reader = new FileReader(configFile)) {
                 JsonObject config = gson.fromJson(reader, JsonObject.class);
-                if (config.has("endpoint")) {
-                    return config.get("endpoint").getAsString();
+                
+                // Override with config file values if present
+                if (config.has("openai_api_key") && (apiKey == null || apiKey.isEmpty())) {
+                    apiKey = config.get("openai_api_key").getAsString();
+                }
+                if (config.has("openai_endpoint") && (endpoint == null || endpoint.isEmpty())) {
+                    endpoint = config.get("openai_endpoint").getAsString();
+                }
+                if (config.has("model") && (model == null || model.isEmpty())) {
+                    model = config.get("model").getAsString();
                 }
             } catch (Exception e) {
-                STSHelpMod.logger.warn("Failed to load config, using default endpoint", e);
+                STSHelpMod.logger.warn("Failed to load config file", e);
             }
         }
-        return DEFAULT_ENDPOINT;
+        
+        // Set defaults if still null
+        if (endpoint == null || endpoint.isEmpty()) {
+            endpoint = DEFAULT_ENDPOINT;
+        }
+        if (model == null || model.isEmpty()) {
+            model = DEFAULT_MODEL;
+        }
+        
+        // Log configuration (without sensitive data)
+        STSHelpMod.logger.info("LLM Configuration - Model: " + model);
     }
 
-    public void requestAdvice(String gameState, AdviceCallback callback) {
+    public void requestAdvice(String gameStateJson, AdviceCallback callback) {
         // Run in background thread to avoid blocking the game
         executor.submit(() -> {
             try {
-                String advice = sendRequest(gameState);
+                // Parse game state
+                JsonObject gameState = gson.fromJson(gameStateJson, JsonObject.class);
+                
+                // Check for error in game state
+                if (gameState.has("error")) {
+                    callback.onAdviceReceived(gameState.get("error").getAsString());
+                    return;
+                }
+                
+                // Create prompt from game state
+                String prompt = llmClient.createPrompt(gameState);
+                STSHelpMod.logger.info("Created prompt for LLM");
+                
+                // Get advice from LLM
+                String advice = llmClient.getAdvice(prompt);
                 callback.onAdviceReceived(advice);
             } catch (Exception e) {
                 STSHelpMod.logger.error("Error requesting advice", e);
-                callback.onError(e.getMessage());
+                callback.onError("Error: " + e.getMessage());
             }
         });
-    }
-
-    private String sendRequest(String gameState) throws IOException {
-        URL url = new URL(endpoint);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        
-        try {
-            // Configure connection
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setDoOutput(true);
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(30000);
-
-            // Send game state
-            try (OutputStream os = conn.getOutputStream()) {
-                byte[] input = gameState.getBytes(StandardCharsets.UTF_8);
-                os.write(input, 0, input.length);
-            }
-
-            // Read response
-            int responseCode = conn.getResponseCode();
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                return readResponse(conn.getInputStream());
-            } else {
-                String error = readResponse(conn.getErrorStream());
-                throw new IOException("HTTP " + responseCode + ": " + error);
-            }
-        } finally {
-            conn.disconnect();
-        }
-    }
-
-    private String readResponse(InputStream is) throws IOException {
-        if (is == null) {
-            return "";
-        }
-        
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-            StringBuilder response = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) {
-                response.append(line).append("\n");
-            }
-            return response.toString();
-        }
     }
 
     public void shutdown() {

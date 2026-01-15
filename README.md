@@ -4,40 +4,36 @@ An on-demand LLM-powered coaching system for Slay the Spire, providing strategic
 
 ## Architecture
 
-The system consists of three layers:
+The system consists of two layers:
 
-1. **Frontend (Java/BaseMod)**: Adds a TopPanelItem Help button to the game UI
-2. **Middleware (Python/Flask)**: Processes game state and communicates with LLM API
-3. **AI Layer**: OpenAI-compatible LLM that generates strategic advice
+1. **Game Mod (Java/BaseMod)**: Extracts game state, communicates with LLM API, and displays advice
+2. **AI Layer**: OpenAI-compatible LLM that generates strategic advice
 
 ```
-┌─────────────────┐
-│  Slay the Spire │
-│   + BaseMod     │
-│   + STSHelp Mod │
-└────────┬────────┘
-         │ HTTP POST
-         │ (Game State JSON)
-         ▼
-┌─────────────────┐
-│ Python Server   │
-│ (Flask)         │
-│ - State Filter  │
-│ - Prompt Gen    │
-└────────┬────────┘
-         │ OpenAI API
-         │ (Chat Completion)
-         ▼
-┌─────────────────┐
-│  LLM API        │
-│ (OpenAI/Compat) │
-└────────┬────────┘
-         │ Advice Text
-         ▼
-┌─────────────────┐
-│  In-Game Screen │
-│  (Advice Text)  │
-└─────────────────┘
+┌─────────────────────────────────┐
+│      Slay the Spire             │
+│       + BaseMod                 │
+│       + STSHelp Mod (Java)      │
+│  ┌───────────────────────────┐  │
+│  │ - Game State Extractor    │  │
+│  │ - Prompt Generator        │  │
+│  │ - LLM Client              │  │
+│  │ - Advice Display          │  │
+│  └───────────┬───────────────┘  │
+└──────────────┼──────────────────┘
+               │ HTTPS POST
+               │ (OpenAI API)
+               ▼
+┌─────────────────────────────────┐
+│      LLM API                    │
+│  (OpenAI/Compatible)            │
+│  - GPT-3.5-turbo / GPT-4        │
+│  - LocalAI / Ollama             │
+│  - Azure OpenAI                 │
+└──────────────┬──────────────────┘
+               │ Advice Text
+               ▼
+      (Displayed in-game)
 ```
 
 ## Features
@@ -46,7 +42,8 @@ The system consists of three layers:
 - **Context-Aware**: Analyzes your current HP, deck, relics, and combat situation
 - **Combat Assistance**: Provides turn-by-turn tactical advice during fights
 - **Strategic Guidance**: Offers deck-building and run strategy tips
-- **OpenAI Compatible**: Works with OpenAI API or compatible alternatives
+- **Direct LLM Integration**: Communicates directly with OpenAI API or compatible alternatives
+- **No External Dependencies**: All processing happens within the Java mod
 
 ## Installation
 
@@ -56,7 +53,6 @@ The system consists of three layers:
 - ModTheSpire
 - BaseMod
 - Java 8 or higher
-- Python 3.7 or higher
 - OpenAI API key or compatible LLM API
 
 ### Step 1: Install the Mod
@@ -71,50 +67,28 @@ The system consists of three layers:
    - Mac: `~/Library/Application Support/Steam/steamapps/common/SlayTheSpire/mods`
    - Linux: `~/.local/share/Steam/steamapps/common/SlayTheSpire/mods`
 
-### Step 2: Set Up the Middleware
+### Step 2: Configure the API
 
-1. Navigate to the middleware directory:
-   ```bash
-   cd middleware
-   ```
-
-2. Install Python dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Configure the API:
-   ```bash
-   cp config.example.json config.json
-   # Edit config.json with your API key
-   ```
-
-   Or set environment variables:
-   ```bash
-   export OPENAI_API_KEY="your-api-key-here"
-   export OPENAI_MODEL="gpt-3.5-turbo"  # or gpt-4
-   ```
-
-4. Start the middleware server:
-   ```bash
-   python server.py
-   ```
-
-   The server will start on `http://localhost:5000`
-
-### Step 3: Configure the Mod (Optional)
-
-Create a `stshelp_config.json` file in your Slay the Spire directory:
+Create a `stshelp_config.json` file in your Slay the Spire directory (same directory as the game executable):
 
 ```json
 {
-  "endpoint": "http://localhost:5000/advice"
+  "openai_api_key": "your-api-key-here",
+  "openai_endpoint": "https://api.openai.com/v1/chat/completions",
+  "model": "gpt-3.5-turbo"
 }
+```
+
+Alternatively, set environment variables:
+```bash
+export OPENAI_API_KEY="your-api-key-here"
+export OPENAI_ENDPOINT="https://api.openai.com/v1/chat/completions"
+export OPENAI_MODEL="gpt-3.5-turbo"  # or gpt-4
 ```
 
 ## Usage
 
-1. Start the middleware server (see Step 2 above)
+1. Configure your OpenAI API key (see Installation Step 2)
 2. Launch Slay the Spire with ModTheSpire
 3. Start a run
 4. Click the Help button in the top panel (or press the configured hotkey)
@@ -147,16 +121,15 @@ The mod extracts and sends the following information to the AI:
 
 ## Configuration
 
-### Middleware Configuration
+### Mod Configuration
 
-Edit `middleware/config.json`:
+Edit `stshelp_config.json` in your Slay the Spire directory:
 
 ```json
 {
   "openai_api_key": "your-api-key-here",
   "openai_endpoint": "https://api.openai.com/v1/chat/completions",
-  "model": "gpt-3.5-turbo",
-  "port": 5000
+  "model": "gpt-3.5-turbo"
 }
 ```
 
@@ -167,6 +140,7 @@ The system supports any OpenAI-compatible API. For example:
 **LocalAI:**
 ```json
 {
+  "openai_api_key": "not-needed-for-local",
   "openai_endpoint": "http://localhost:8080/v1/chat/completions",
   "model": "ggml-gpt4all-j"
 }
@@ -175,8 +149,9 @@ The system supports any OpenAI-compatible API. For example:
 **Azure OpenAI:**
 ```json
 {
+  "openai_api_key": "your-azure-key",
   "openai_endpoint": "https://your-resource.openai.azure.com/openai/deployments/your-deployment/chat/completions?api-version=2023-05-15",
-  "openai_api_key": "your-azure-key"
+  "model": "gpt-35-turbo"
 }
 ```
 
@@ -201,11 +176,8 @@ stshelp/
 │   ├── HelpButton.java          # Top panel help button
 │   ├── AdviceScreen.java        # In-game advice display
 │   ├── GameStateExtractor.java  # Extracts game state
-│   └── AICoachClient.java       # HTTP client for middleware
-├── middleware/
-│   ├── server.py                # Flask server
-│   ├── requirements.txt         # Python dependencies
-│   └── config.example.json      # Configuration template
+│   ├── AICoachClient.java       # Orchestrates LLM communication
+│   └── LLMClient.java           # Direct LLM API client
 ├── pom.xml                      # Maven build file
 └── README.md                    # This file
 ```
@@ -215,20 +187,21 @@ stshelp/
 ### "No active game" Error
 - Make sure you're in an active run before clicking the Help button
 
-### Connection Errors
-- Ensure the middleware server is running
-- Check that the endpoint in `stshelp_config.json` matches the server address
-- Verify firewall settings aren't blocking localhost:5000
+### API Key Errors
+- Verify your API key is correct in `stshelp_config.json`
+- Check that the file is in the correct location (Slay the Spire directory)
+- Alternatively, set the `OPENAI_API_KEY` environment variable
 
 ### API Errors
 - Verify your API key is correct
 - Check API rate limits and quotas
 - Ensure the model name is valid
+- Check your internet connection
 
 ### No Response
-- Check middleware server logs for errors
-- Verify network connectivity
-- Increase timeout values if on slow connection
+- Check the ModTheSpire logs for errors
+- Verify your API endpoint is accessible
+- Ensure firewall isn't blocking HTTPS traffic to the API endpoint
 
 ## Privacy & Security
 

@@ -4,10 +4,9 @@ This guide will walk you through setting up the STS Help AI Coach system from sc
 
 ## Overview
 
-The setup involves three main components:
+The setup involves two main components:
 1. The Java mod (runs inside Slay the Spire)
-2. The Python middleware server (processes requests)
-3. An OpenAI API key (or compatible LLM service)
+2. An OpenAI API key (or compatible LLM service)
 
 ## Prerequisites Checklist
 
@@ -16,8 +15,6 @@ Before starting, make sure you have:
 - [ ] Slay the Spire installed (Steam version recommended)
 - [ ] Java Development Kit (JDK) 8 or higher
 - [ ] Maven (for building the Java mod)
-- [ ] Python 3.7 or higher
-- [ ] pip (Python package manager)
 - [ ] OpenAI API key OR access to a compatible LLM API
 - [ ] ModTheSpire installed
 - [ ] BaseMod installed
@@ -81,112 +78,67 @@ C:\Program Files (x86)\Steam\steamapps\common\SlayTheSpire\mods\
 ~/.local/share/Steam/steamapps/common/SlayTheSpire/mods/
 ```
 
-## Part 3: Setting Up the Middleware Server
+## Part 3: Configure API Access
 
-### 1. Install Python Dependencies
-
-```bash
-cd middleware
-pip install -r requirements.txt
-```
-
-### 2. Configure API Access
-
-**Option A: Using config.json (Recommended)**
-
-```bash
-cp config.example.json config.json
-```
-
-Edit `config.json`:
-```json
-{
-  "openai_api_key": "sk-your-actual-api-key-here",
-  "openai_endpoint": "https://api.openai.com/v1/chat/completions",
-  "model": "gpt-3.5-turbo",
-  "port": 5000
-}
-```
-
-**Option B: Using Environment Variables**
-
-```bash
-# Linux/Mac
-export OPENAI_API_KEY="sk-your-actual-api-key-here"
-export OPENAI_MODEL="gpt-3.5-turbo"
-export PORT=5000
-
-# Windows (Command Prompt)
-set OPENAI_API_KEY=sk-your-actual-api-key-here
-set OPENAI_MODEL=gpt-3.5-turbo
-set PORT=5000
-
-# Windows (PowerShell)
-$env:OPENAI_API_KEY="sk-your-actual-api-key-here"
-$env:OPENAI_MODEL="gpt-3.5-turbo"
-$env:PORT=5000
-```
-
-### 3. Get an OpenAI API Key
+### 1. Get an OpenAI API Key
 
 1. Visit https://platform.openai.com/
 2. Sign up or log in
 3. Navigate to API Keys section
 4. Create a new API key
 5. Copy the key (it starts with `sk-`)
-6. Add it to your configuration (step 2 above)
+
+### 2. Create Configuration File
+
+Create `stshelp_config.json` in your Slay the Spire directory (same folder as the game executable):
+
+```json
+{
+  "openai_api_key": "sk-your-actual-api-key-here",
+  "openai_endpoint": "https://api.openai.com/v1/chat/completions",
+  "model": "gpt-3.5-turbo"
+}
+```
+
+**Alternative: Using Environment Variables**
+
+```bash
+# Linux/Mac
+export OPENAI_API_KEY="sk-your-actual-api-key-here"
+export OPENAI_MODEL="gpt-3.5-turbo"
+
+# Windows (Command Prompt)
+set OPENAI_API_KEY=sk-your-actual-api-key-here
+set OPENAI_MODEL=gpt-3.5-turbo
+
+# Windows (PowerShell)
+$env:OPENAI_API_KEY="sk-your-actual-api-key-here"
+$env:OPENAI_MODEL="gpt-3.5-turbo"
+```
 
 ### Alternative: Use a Local LLM
 
 If you want to avoid OpenAI and run everything locally:
 
 1. Install LocalAI or similar: https://localai.io/
-2. Update your config.json:
+2. Update your `stshelp_config.json`:
    ```json
    {
-     "openai_endpoint": "http://localhost:8080/v1/chat/completions",
-     "model": "your-local-model-name",
      "openai_api_key": "not-needed-for-local",
-     "port": 5000
+     "openai_endpoint": "http://localhost:8080/v1/chat/completions",
+     "model": "your-local-model-name"
    }
    ```
 
 ## Part 4: Running the System
 
-### 1. Start the Middleware Server
-
-**Linux/Mac:**
-```bash
-cd middleware
-./start.sh
-```
-
-**Windows:**
-```
-cd middleware
-start.bat
-```
-
-**Or manually:**
-```bash
-cd middleware
-python server.py
-```
-
-You should see:
-```
-Starting STS Help Middleware
-Config: {...}
- * Running on http://0.0.0.0:5000
-```
-
-### 2. Launch Slay the Spire
+### 1. Launch Slay the Spire
 
 1. Start ModTheSpire (MTS.bat or MTS.sh)
 2. Ensure both BaseMod and STSHelp are checked
 3. Click "Play"
 
-### 3. Test the System
+### 2. Test the System
 
 1. Start a new run in Slay the Spire
 2. Look for a Help button in the top panel
@@ -194,31 +146,6 @@ Config: {...}
 4. Wait for AI advice to appear (5-10 seconds)
 
 ## Part 5: Verification
-
-### Check Server is Running
-
-Open a browser and go to: http://localhost:5000/health
-
-You should see:
-```json
-{
-  "status": "ok",
-  "config": {
-    "has_api_key": true,
-    "model": "gpt-3.5-turbo"
-  }
-}
-```
-
-### Check Server Logs
-
-The middleware server will log all requests:
-```
-INFO:__main__:Received game state request
-INFO:__main__:Essential state: {...}
-INFO:__main__:Prompt created
-INFO:__main__:Advice generated: [AI advice here]
-```
 
 ### In-Game Verification
 
@@ -241,97 +168,62 @@ INFO:__main__:Advice generated: [AI advice here]
 - You must be in an active run, not in the menu
 - Try starting a new run and clicking Help again
 
-### Server connection errors
-
-- Ensure the middleware server is running (`python server.py`)
-- Check firewall settings for port 5000
-- Verify the endpoint in `stshelp_config.json` matches
-
 ### API errors
 
-- Verify your API key is correct and active
+- Verify your API key is correct and active in `stshelp_config.json`
 - Check OpenAI API status: https://status.openai.com/
 - Ensure you have API credits/quota remaining
 - Try using a different model (e.g., gpt-3.5-turbo instead of gpt-4)
+- Check your internet connection
 
-### Server won't start
+### No response or timeout
 
-```bash
-# Check if port 5000 is already in use
-# Linux/Mac
-lsof -i :5000
-
-# Windows
-netstat -ano | findstr :5000
-
-# Use a different port if needed
-export PORT=5001
-python server.py
-```
-
-Then update `stshelp_config.json`:
-```json
-{
-  "endpoint": "http://localhost:5001/advice"
-}
-```
+- Check ModTheSpire logs for error messages
+- Verify your API endpoint is accessible
+- Ensure firewall isn't blocking HTTPS traffic
+- Try increasing timeout in the code if on slow connection
 
 ## Advanced Configuration
 
-### Custom Endpoint
-
-Create `stshelp_config.json` in your Slay the Spire directory:
-```json
-{
-  "endpoint": "http://your-server:5000/advice"
-}
-```
-
 ### Using Different Models
 
-Edit `middleware/config.json`:
+Edit `stshelp_config.json`:
 ```json
 {
-  "model": "gpt-4",  // More powerful but more expensive
+  "openai_api_key": "your-key",
+  "model": "gpt-4"  // More powerful but more expensive
   // or
   "model": "gpt-3.5-turbo"  // Faster and cheaper
 }
 ```
 
-### Running Server on Different Machine
+### Using Azure OpenAI
 
-1. On the server machine, start the middleware with:
-   ```bash
-   python server.py
-   ```
-
-2. On the game machine, create `stshelp_config.json`:
-   ```json
-   {
-     "endpoint": "http://server-ip-address:5000/advice"
-   }
-   ```
-
-3. Ensure firewall allows connections to port 5000
+```json
+{
+  "openai_api_key": "your-azure-key",
+  "openai_endpoint": "https://your-resource.openai.azure.com/openai/deployments/your-deployment/chat/completions?api-version=2023-05-15",
+  "model": "gpt-35-turbo"
+}
+```
 
 ## Next Steps
 
 Once everything is working:
 
 1. Play some runs and test the AI advice
-2. Adjust the prompt in `middleware/server.py` if needed
-3. Experiment with different LLM models
-4. Consider contributing improvements back to the project
+2. Experiment with different LLM models
+3. Consider contributing improvements back to the project
 
 ## Getting Help
 
 If you encounter issues:
 
 1. Check the troubleshooting section above
-2. Review server logs for error messages
+2. Check ModTheSpire logs for error messages
 3. Check the GitHub issues page
 4. Open a new issue with:
-   - Your OS and versions (Java, Python, etc.)
+   - Your OS and versions (Java, Maven, etc.)
    - Error messages from logs
    - Steps to reproduce the problem
 
